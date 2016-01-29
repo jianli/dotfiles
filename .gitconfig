@@ -1,0 +1,17 @@
+[alias]
+	lg = log --graph --decorate --abbrev-commit --date=relative
+	ls = ls-files
+	s = status -sb .
+	g = grep -i -F -A1 -B1
+	upstream = rev-parse --abbrev-ref --symbolic-full-name @{upstream}
+	playback = playback
+	get-merge = get-merge
+	b = blame -M -C -w
+	what-commit = rev-parse HEAD
+	what-branch = rev-parse --abbrev-ref HEAD
+[diff]
+	algorithm = patience
+[core]
+	editor = emacs
+[push]
+	default = simple
