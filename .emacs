@@ -1,6 +1,6 @@
 (require 'package)
 (add-to-list 'package-archives
-             '("melpa-stable" . "http://melpa.org/packages/") t)
+             '("melpa" . "http://melpa.org/packages/") t)
 (package-initialize)
 (require 'cl)
 
@@ -30,6 +30,18 @@
 
 (which-function-mode)
 
+(setq-default
+ mode-line-format
+ '(
+   "%e"
+   mode-line-buffer-identification
+   "   " mode-line-position
+   mode-line-misc-info
+   mode-line-modes
+   mode-line-end-spaces
+   )
+ )
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; behavior
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -45,6 +57,7 @@
 (require 'pbcopy)
 
 (setq-default indent-tabs-mode nil)
+(setq require-final-newline 'visit)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; python
@@ -62,6 +75,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (setq js-indent-level 4)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ledger mode
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (add-to-list 'auto-mode-alist '("\\.ledger$" . ledger-mode))
 
@@ -85,9 +102,8 @@
 (global-set-key (kbd "C-c n") 'flycheck-next-error)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; etags
+;; jump
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(global-set-key (kbd "C-x t") 'find-tag)
-(require 'etags-table)
-(setq etags-table-search-up-depth 5)
+(dumb-jump-mode)
+(global-set-key (kbd "C-x t") 'dumb-jump-go)

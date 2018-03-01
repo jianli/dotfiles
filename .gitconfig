@@ -15,3 +15,5 @@
 	editor = emacs
 [push]
 	default = simple
+[tag]
+	sort = version:refname
