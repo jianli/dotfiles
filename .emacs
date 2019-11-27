@@ -1,6 +1,6 @@
 (require 'package)
 (add-to-list 'package-archives
-             '("melpa" . "http://melpa.org/packages/") t)
+             '("melpa-stable" . "http://melpa.org/packages/") t)
 (package-initialize)
 (require 'cl)
 
@@ -20,61 +20,47 @@
 
 (column-number-mode)
 
-;; keeps page centered
-(add-hook 'post-command-hook
-	  (lambda ()
-	    (recenter '("don't redraw"))))
-
-(require 'uniquify)
 (setq uniquify-buffer-name-style 'forward)
 
 (which-function-mode)
+(menu-bar-mode -1)
 
-(setq-default
- mode-line-format
- '(
-   "%e"
-   mode-line-buffer-identification
-   "   " mode-line-position
-   mode-line-misc-info
-   mode-line-modes
-   mode-line-end-spaces
-   )
- )
+(require 'centered-cursor-mode)
+(global-centered-cursor-mode)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; behavior
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; prevent yes or no prompt
 (defalias 'yes-or-no-p 'y-or-n-p)
+(setq split-width-threshold 100)
+(setq-default fill-column 80)
 
-(defadvice save-buffers-kill-emacs (around no-y-or-n activate)
-  (flet ((yes-or-no-p (&rest args) t)
-         (y-or-n-p (&rest args) t))
-    ad-do-it))
-
-(require 'pbcopy)
+(defun my-kill-emacs ()
+  "save some buffers, then exit unconditionally"
+  (interactive)
+  (save-some-buffers nil t)
+  (kill-emacs))
+(global-set-key (kbd "C-x C-c") 'my-kill-emacs)
 
 (setq-default indent-tabs-mode nil)
-(setq require-final-newline 'visit)
+
+(winner-mode)
+(ido-mode 1)
+
+(add-hook 'before-save-hook 'delete-trailing-whitespace)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; python
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(setq python-fill-docstring-style 'django)
-
-(add-hook 'python-mode-hook
-	  (lambda ()
-	    (local-set-key (kbd "C-c d")
-			   (lambda () (interactive) (insert "import ipdb; ipdb.set_trace()")))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; javascript mode
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(setq js-indent-level 4)
+(add-hook 'python-mode-hook 'my-python-mode-hook)
+(defun my-python-mode-hook ()
+  (local-set-key (kbd "C-c d")
+                 (lambda () (interactive) (insert "import ipdb; ipdb.set_trace(context=9)\n")))
+  (setq python-fill-docstring-style 'pep-257-nn)
+  (flycheck-mode)
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ledger mode
@@ -87,23 +73,94 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (global-git-gutter-mode t)
-(global-set-key (kbd "C-x g") 'git-gutter:toggle)
 (global-set-key (kbd "C-x v =") 'git-gutter:popup-diff)
 (global-set-key (kbd "C-x p") 'git-gutter:previous-hunk)
 (global-set-key (kbd "C-x n") 'git-gutter:next-hunk)
 (global-set-key (kbd "C-x r") 'git-gutter:revert-hunk)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; file navigation
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define-key global-map (kbd "C-x g") (make-sparse-keymap))
+
+(dumb-jump-mode)
+(global-set-key (kbd "C-x g j") 'dumb-jump-go)
+(global-set-key (kbd "C-x t") 'dumb-jump-go)
+(global-set-key (kbd "C-x g p") 'dumb-jump-go-prompt)
+
+(global-set-key (kbd "C-x g f") 'fiplr-find-file)
+(global-set-key (kbd "C-x g g") 'vc-git-grep)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; linting
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(add-hook 'after-init-hook #'global-flycheck-mode)
 (global-set-key (kbd "C-c p") 'flycheck-previous-error)
 (global-set-key (kbd "C-c n") 'flycheck-next-error)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; jump
+;; pbcopy
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(dumb-jump-mode)
-(global-set-key (kbd "C-x t") 'dumb-jump-go)
+(defun copy-from-osx ()
+  (shell-command-to-string "pbpaste"))
+
+(defun paste-to-osx (text &optional push)
+  (let ((process-connection-type nil))
+    (let ((proc (start-process "pbcopy" "*Messages*" "pbcopy")))
+      (process-send-string proc text)
+      (process-send-eof proc))))
+
+(setq interprogram-cut-function 'paste-to-osx)
+(setq interprogram-paste-function 'copy-from-osx)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; golang
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(setenv "GOPATH" "/Users/jian/gocode")
+
+(defun set-exec-path-from-shell-PATH ()
+  (let ((path-from-shell (replace-regexp-in-string
+                          "[ \t\n]*$"
+                          ""
+                          (shell-command-to-string "$SHELL --login -i -c 'echo $PATH'"))))
+    (setenv "PATH" path-from-shell)
+    (setq eshell-path-env path-from-shell) ; for eshell users
+    (setq exec-path (split-string path-from-shell path-separator))))
+
+(when window-system (set-exec-path-from-shell-PATH))
+
+(defun my-go-mode-hook ()
+  (lsp)
+  (setq gofmt-command "goimports")
+  (add-hook 'before-save-hook 'gofmt-before-save)
+  (setq create-lockfiles nil)
+  ;; (local-set-key (kbd "C-x t") 'lsp-find-definition)
+  (local-set-key (kbd "C-x g g") 'lsp-find-references)
+  (go-guru-hl-identifier-mode)
+  (ac-config-default)
+  )
+
+(add-hook 'go-mode-hook 'my-go-mode-hook)
+(with-eval-after-load 'go-mode
+  (require 'go-autocomplete))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;automatic
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   (quote
+    (json-mode projectile go-autocomplete go-rename centered-cursor-mode el-get pycoverage dumb-jump fiplr neotree flymake-go go-guru auto-complete exec-path-from-shell go-mode git-gutter flycheck))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
